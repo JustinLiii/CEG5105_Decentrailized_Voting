@@ -1,0 +1,28 @@
+{
+  "name": "ceg5105_frontend",
+  "version": "1.0.0",
+  "description": "",
+  "license": "UNLICENSED",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "browserify ./src/js/app.js -g [ babelify --presets [ @babel/preset-env ] ] -o ./src/dist/app.bundle.js "
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.27.0",
+    "@babel/core": "^7.26.10",
+    "@babel/plugin-proposal-class-properties": "^7.18.6",
+    "@babel/plugin-proposal-private-methods": "^7.18.6",
+    "@babel/preset-env": "^7.26.9",
+    "babelify": "^10.0.0"
+  }
+}

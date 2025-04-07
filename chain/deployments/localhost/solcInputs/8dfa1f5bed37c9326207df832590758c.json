@@ -1,0 +1,36 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/Voting.sol": {
+      "content": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.28;\n\ncontract Voting {\n    struct Candidate {\n        uint id;\n        string name;\n        string party; \n        uint voteCount;\n    }\n\n    mapping (uint => Candidate) public candidates;\n    mapping (address => bool) public voters;\n\n    \n    uint public countCandidates;\n    uint256 public votingEnd;\n    uint256 public votingStart;\n\n    function addCandidate(string memory name, string memory party) public  returns(uint) {\n            \n        countCandidates++;\n        candidates[countCandidates] = Candidate(countCandidates, name, party, 0);\n        return countCandidates;\n    }\n   \n    function vote(uint candidateID) public {\n\n       require((votingStart <= block.timestamp) && (votingEnd > block.timestamp));\n   \n       require(candidateID > 0 && candidateID <= countCandidates);\n\n       //daha önce oy kullanmamıs olmalı\n       require(!voters[msg.sender]);\n              \n       voters[msg.sender] = true;\n       \n       candidates[candidateID].voteCount ++;      \n    }\n    \n    function checkVote() public view returns(bool){\n        return voters[msg.sender];\n    }\n       \n    function getCountCandidates() public view returns(uint) {\n        return countCandidates;\n    }\n\n    function getCandidate(uint candidateID) public view returns (uint,string memory, string memory,uint) {\n        return (candidateID,candidates[candidateID].name,candidates[candidateID].party,candidates[candidateID].voteCount);\n    }\n\n    function setDates(uint256 _startDate, uint256 _endDate) public{\n        require((votingEnd == 0) && (votingStart == 0) && (_startDate + 1000000 > block.timestamp) && (_endDate > _startDate));\n        votingEnd = _endDate;\n        votingStart = _startDate;\n    }\n\n    function getDates() public view returns (uint256,uint256) {\n      return (votingStart,votingEnd);\n    }\n}\n"
+    }
+  },
+  "settings": {
+    "evmVersion": "paris",
+    "optimizer": {
+      "enabled": false,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}

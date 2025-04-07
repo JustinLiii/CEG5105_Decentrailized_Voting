@@ -1,0 +1,9 @@
+services:
+  db:
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 114514
+      MYSQL_DATABASE: voter
+    ports:
+      - "3306:3306"

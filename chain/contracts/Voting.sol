@@ -18,9 +18,10 @@ contract Voting {
     uint256 public votingStart;
 
     function addCandidate(string memory name, string memory party) public  returns(uint) {
-               countCandidates ++;
-               candidates[countCandidates] = Candidate(countCandidates, name, party, 0);
-               return countCandidates;
+            
+        countCandidates++;
+        candidates[countCandidates] = Candidate(countCandidates, name, party, 0);
+        return countCandidates;
     }
    
     function vote(uint candidateID) public {

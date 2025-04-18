@@ -4,7 +4,7 @@ import os
 import jwt
 from dotenv import load_dotenv
 # import mysql.connector
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status, Response, Cookie
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -65,13 +65,29 @@ async def authenticate(request: Request):
 
 # Define the POST endpoint for login
 @app.get("/login")
-async def login(request: Request, voter_id: str, password: str):
+async def login(request: Request, response: Response, voter_id: str, password: str):
     await authenticate(request)
     role = await get_role(voter_id, password)
 
     # Assuming authentication is successful, generate a token
     token = jwt.encode({'password': password, 'voter_id': voter_id, 'role': role}, os.environ['SECRET_KEY'], algorithm='HS256')
+    
+    # 设置 cookie：将 token 放入 HttpOnly + Secure Cookie + samesite="Lax"
+    # Set cookie: HttpOnly + Secure Cookie + samesite="Lax"
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="Lax"
+    )
+    
     return {'token': token, 'role': role}
+
+@app.get("/protected")
+async def protected_route(access_token: str = Cookie(None)):
+    payload = jwt.decode(access_token, os.environ["SECRET_KEY"], algorithms=["HS256"])
+    return {"message": "Welcome!", "user": payload}
 
 # Replace 'admin' with the actual role based on authentication
 async def get_role(voter_id, password):

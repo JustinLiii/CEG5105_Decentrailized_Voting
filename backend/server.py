@@ -2,13 +2,16 @@
 """
 匿名账户分配系统 - 服务器端
 """
-
-from flask import Flask, request, jsonify
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Request, status, Response, Cookie
+from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
 import os
-import pymysql
 from assign import AnonymousAccountAllocatorDB
+from dotenv import load_dotenv
 
-app = Flask(__name__)
+# Loading the environment variables
+load_dotenv()
 
 # 数据库配置
 DB_CONFIG = {
@@ -24,9 +27,9 @@ PUBLIC_KEY_PATH = os.environ.get('PUBLIC_KEY_PATH', 'public.pem')
 
 # 全局账户分配器实例
 allocator = None
-
-@app.before_first_request
-def initialize_allocator():
+        
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     """初始化账户分配器"""
     global allocator
     try:
@@ -37,9 +40,28 @@ def initialize_allocator():
         )
     except Exception as e:
         app.logger.error(f"初始化账户分配器失败: {e}")
+    yield
 
 
-@app.route('/blind_sign', methods=['POST'])
+app = FastAPI(lifespan=lifespan)
+
+# Define the allowed origins for CORS
+origins = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get('/blind_sign', methods=['POST'])
 def blind_sign():
     """处理盲签名请求"""
     if not allocator:
@@ -58,7 +80,7 @@ def blind_sign():
         return jsonify({'error': f'处理请求失败: {str(e)}'}), 500
 
 
-@app.route('/assign_account', methods=['POST'])
+@app.get('/assign_account', methods=['POST'])
 def assign_account():
     """处理账户分配请求"""
     if not allocator:
@@ -80,15 +102,12 @@ def assign_account():
         return jsonify({'error': f'处理请求失败: {str(e)}'}), 500
 
 
-@app.route('/health', methods=['GET'])
+@app.get('/health', methods=['GET'])
 def health_check():
     """健康检查接口"""
     return jsonify({'status': 'ok'})
 
 
 if __name__ == '__main__':
-    # 设置环境变量以进行初始化
-    # 例如: os.environ['PRIVATE_KEY_PATH'] = 'path/to/private.pem'
-    
     # 启动服务器
     app.run(host='0.0.0.0', port=5000, debug=True) 

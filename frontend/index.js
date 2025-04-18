@@ -71,6 +71,10 @@ app.get('/dist/app.bundle.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/dist/app.bundle.js'));
 });
 
+app.get('/public.gem', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public.pem'));
+});
+
 // Serve the favicon.ico file
 app.get('/favicon.ico', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/favicon.ico'));

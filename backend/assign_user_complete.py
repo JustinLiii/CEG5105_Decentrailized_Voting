@@ -17,9 +17,14 @@ def parse_args():
     parser.add_argument('--pubkey', default='public.pem', help='RSA公钥文件路径')
     return parser.parse_args()
 
-def blind_sign_request(user_info, public_key_path, server_url):
+def blind_sign_request(user_name, user_id, server_url):
+    user_info = {
+        "id_number": user_id,
+        "name": user_name
+    }
     """执行盲签名请求流程"""
     # 步骤1: 加载公钥
+    public_key_path = '/public.pem'
     try:
         with open(public_key_path, "rb") as f:
             pub_key = RSA.import_key(f.read())
@@ -58,7 +63,7 @@ def blind_sign_request(user_info, public_key_path, server_url):
     print("签名验证成功！")
     
     # 步骤7: 请求分配账户
-    try:
+    try:    
         response = requests.post(
             f"{server_url}/assign_account",
             json={
@@ -75,7 +80,6 @@ def blind_sign_request(user_info, public_key_path, server_url):
         print(f"请求分配账户失败: {e}")
         if hasattr(e, 'response') and e.response:
             print(f"服务器返回: {e.response.text}")
-        sys.exit(1)
 
 def main():
     """主函数"""
@@ -100,4 +104,4 @@ def main():
     print(f"账户信息已保存到 {args.name}_account.json")
 
 if __name__ == "__main__":
-    main() 
+    main()

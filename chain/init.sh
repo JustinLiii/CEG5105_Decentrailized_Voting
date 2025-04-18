@@ -1,1 +1,1 @@
-npx hardhat node
+npx hardhat node --export ../frontend/deployed.json

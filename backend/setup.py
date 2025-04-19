@@ -9,25 +9,11 @@ python setup.py [--db-host HOST] [--db-user USER] [--db-password PASS] [--db-nam
 """
 
 import argparse
-import os
 import sys
 import pymysql
-import hashlib
 from Crypto.PublicKey import RSA
 
-from web3 import Web3
-
-NETWORK_ENDPOINT = "https://127.0.0.1:8545"
-
-def create_account()-> tuple[str, str]:
-    """
-    Create a new Ethereum account.
-    """
-    # Generate a new Ethereum account
-    w3 = Web3(Web3.HTTPProvider(NETWORK_ENDPOINT))
-    new_acct = w3.eth.account.create()
-    return new_acct.address, Web3.to_hex(new_acct.key)
-
+from blockchain import create_account, fund_account
 
 def parse_args():
     """解析命令行参数"""
@@ -35,7 +21,7 @@ def parse_args():
     parser.add_argument('--db-host', default='localhost', help='数据库主机地址')
     parser.add_argument('--db-user', default='root', help='数据库用户名')
     parser.add_argument('--db-password', default='114514', help='数据库密码')
-    parser.add_argument('--db-name', default='anonymous_accounts', help='数据库名称')
+    parser.add_argument('--db-name', default='voter_database', help='数据库名称')
     parser.add_argument('--key-size', type=int, default=2048, help='RSA密钥大小')
     return parser.parse_args()
 
@@ -124,7 +110,7 @@ def init_database(db_config):
                 print(f"添加{num_accounts}个测试账户...")
                 
                 for i in range(num_accounts):
-                    address = create_account()[1]
+                    address = create_account(fund=True)[1]
                     cursor.execute(
                         "INSERT INTO account_pool (address, is_assigned) VALUES (%s, FALSE)",
                         (address,)

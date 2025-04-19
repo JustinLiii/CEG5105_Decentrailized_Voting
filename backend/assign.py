@@ -25,12 +25,12 @@ class AnonymousAccountAllocatorDB:
             self.public_key.n, self.public_key.e
         )
 
-    def _hash_user_identity(self, user_info):
-        """
-        使用 SHA-256 对用户身份信息进行哈希处理（不可逆）。
-        """
-        user_str = json.dumps(user_info, sort_keys=True)
-        return hashlib.sha256(user_str.encode()).hexdigest()
+    # def _hash_user_identity(self, user_info):
+    #     """
+    #     使用 SHA-256 对用户身份信息进行哈希处理（不可逆）。
+    #     """
+    #     user_str = json.dumps(user_info, sort_keys=True)
+    #     return hashlib.sha256(user_str.encode()).hexdigest()
 
     def sign_blinded_identity(self, blinded_msg: int) -> int:
         """
@@ -38,45 +38,46 @@ class AnonymousAccountAllocatorDB:
         """
         return blind_rsa.sign(self.private_numbers, blinded_msg)
 
-    def verify_signature(self, user_info: dict, signature: int) -> bool:
+    def verify_signature(self, user_hash: int, signature: int) -> bool:
         """
         验证用户提供的签名是否对其身份哈希有效。
         """
-        user_hash = self._hash_user_identity(user_info)
-        message = int(user_hash, 16)
-        return blind_rsa.verify(self.public_numbers, message, signature)
+        return blind_rsa.verify(self.public_numbers, user_hash, signature)
 
     def is_signature_used(self, signature: int) -> bool:
         """
         检查签名是否已使用（防止重复领取）。
         """
-        self.cursor.execute("SELECT id FROM used_signatures WHERE signature = %s", (hex(signature),))
+        signature_hex = hex(signature)
+        signature_hash = hashlib.sha256(signature_hex.encode()).hexdigest()
+        self.cursor.execute("SELECT id FROM used_signatures WHERE signature_hash = %s", (signature_hash,))
         return self.cursor.fetchone() is not None
 
     def mark_signature_used(self, signature: int):
         """
         记录签名为已使用。
         """
+        signature_hex = hex(signature)
+        signature_hash = hashlib.sha256(signature_hex.encode()).hexdigest()
         self.cursor.execute(
-            "INSERT INTO used_signatures (signature, used_at) VALUES (%s, %s)",
-            (hex(signature), datetime.utcnow())
+            "INSERT INTO used_signatures (signature, signature_hash, used_at) VALUES (%s, %s, %s)",
+            (signature_hex, signature_hash, datetime.utcnow())
         )
         self.conn.commit()
 
-    def assign_account(self, user_info: dict, signature: int):
+    def assign_account(self, user_hash: int, signature: int):
         """
         分配一个匿名账户，但前提是签名合法且未被使用。
         """
-        if not self.verify_signature(user_info, signature):
+        user_hash_hex = f"{user_hash:x}"
+        if not self.verify_signature(user_hash, signature):
             raise Exception("签名无效，无法分配账户。")
 
         if self.is_signature_used(signature):
             raise Exception("该签名已被使用，无法重复领取。")
 
-        user_hash = self._hash_user_identity(user_info)
-
         # 检查是否已分配过
-        self.cursor.execute("SELECT account_id FROM assigned_accounts WHERE user_hash = %s", (user_hash,))
+        self.cursor.execute("SELECT account_id FROM assigned_accounts WHERE user_hash = %s", (user_hash_hex,))
         result = self.cursor.fetchone()
         if result:
             account_id = result[0]
@@ -91,7 +92,7 @@ class AnonymousAccountAllocatorDB:
             raise Exception("No more accounts available.")
 
         # 混合用户哈希和加密随机数
-        seed = int(user_hash, 16) ^ secrets.randbits(256)
+        seed = user_hash ^ secrets.randbits(256)
         index = seed % len(available_accounts)
 
         selected_account = available_accounts[index]
@@ -102,7 +103,7 @@ class AnonymousAccountAllocatorDB:
         # 插入分配记录
         self.cursor.execute(
             "INSERT INTO assigned_accounts (user_hash, account_id, assigned_at) VALUES (%s, %s, %s)",
-            (user_hash, account_id, datetime.utcnow())
+            (user_hash_hex, account_id, datetime.utcnow())
         )
 
         # 记录签名为已使用

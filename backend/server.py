@@ -2,23 +2,30 @@
 """
 匿名账户分配系统 - 服务器端
 """
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request, status, Response, Cookie
-from fastapi.encoders import jsonable_encoder
-from fastapi.middleware.cors import CORSMiddleware
+import logging
 import os
+from contextlib import asynccontextmanager
+
+import jwt
 from assign import AnonymousAccountAllocatorDB
 from dotenv import load_dotenv
+from fastapi import Cookie, FastAPI, HTTPException, Request, Response, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 # Loading the environment variables
 load_dotenv()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # 数据库配置
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'user': os.environ.get('DB_USER', 'root'),
     'password': os.environ.get('DB_PASSWORD', '114514'),
-    'db': os.environ.get('DB_NAME', 'anonymous_accounts'),
+    'db': os.environ.get('DB_NAME', 'voter_database'),
 }
 
 # 密钥文件路径
@@ -39,7 +46,7 @@ async def lifespan(app: FastAPI):
             PUBLIC_KEY_PATH
         )
     except Exception as e:
-        app.logger.error(f"初始化账户分配器失败: {e}")
+        logger.error(f"初始化账户分配器失败: {e}")
     yield
 
 
@@ -60,54 +67,105 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class UserInfo(BaseModel):
+    voter_id: str
+    voter_name: str
+    
+async def authenticate(user_info: UserInfo):
+    # should be replaced with actual voter authentication logic
+    # if cannot authenticate
+    # raise HTTPException(
+    #     status_code=status.HTTP_401_UNAUTHORIZED,
+    #     detail="Forbidden"
+    # )
+    pass
 
-@app.get('/blind_sign', methods=['POST'])
-def blind_sign():
+async def get_role(voter_id):
+    if voter_id == 'admin':
+        return 'admin'
+    else:
+        return 'user'
+
+# Define the POST endpoint for login
+@app.post("/login")
+async def login(user_info: UserInfo, response: Response):
+    await authenticate(user_info)
+    role = await get_role(user_info.voter_id)
+
+    # Assuming authentication is successful, generate a token
+    token = jwt.encode({'voter_name': user_info.voter_name, 'voter_id': user_info.voter_id, 'role': role}, os.environ['SECRET_KEY'], algorithm='HS256')
+    
+    # 设置 cookie：将 token 放入 HttpOnly + Secure Cookie + samesite="Lax"
+    # Set cookie: HttpOnly + Secure Cookie + samesite="Lax"
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="lax"
+    )
+    
+    return {'token': token, 'role': role}
+
+class BlindMessage(BaseModel):
+    """盲签名请求模型"""
+    blinded_message: str
+@app.post('/blind_sign')
+def blind_sign(data: BlindMessage):
     """处理盲签名请求"""
     if not allocator:
-        return jsonify({'error': '服务器未正确初始化'}), 500
-
-    data = request.json
-    if not data or 'blinded_message' not in data:
-        return jsonify({'error': '缺少必要参数'}), 400
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="服务器未正确初始化"
+        )
 
     try:
-        blinded_message = int(data['blinded_message'])
+        blinded_message = int(data.blinded_message)
         blind_signature = allocator.sign_blinded_identity(blinded_message)
-        return jsonify({'blind_signature': str(blind_signature)})
+        return {'blind_signature': str(blind_signature)}
     except Exception as e:
-        app.logger.error(f"盲签名失败: {e}")
-        return jsonify({'error': f'处理请求失败: {str(e)}'}), 500
+        logger.error(f"盲签名失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"处理请求失败: {str(e)}"
+        )
+        
+@app.get("/protected")
+async def protected_route(access_token: str = Cookie(None)):
+    payload = jwt.decode(access_token, os.environ["SECRET_KEY"], algorithms=["HS256"])
+    return {"message": "Welcome!", "user": payload}
 
-
-@app.get('/assign_account', methods=['POST'])
-def assign_account():
+class SignedUserInfo(BaseModel):
+    user_hash: str
+    signature: str
+@app.post('/assign_account')
+def assign_account(data: SignedUserInfo):
+    print(f"received message: {data.user_hash}")
     """处理账户分配请求"""
     if not allocator:
-        return jsonify({'error': '服务器未正确初始化'}), 500
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="服务器未正确初始化"
+        )
 
-    data = request.json
-    if not data or 'user_info' not in data or 'signature' not in data:
-        return jsonify({'error': '缺少必要参数'}), 400
+    user_hash = int(data.user_hash)
+    signature = int(data.signature)
+    # 分配账户
+    account_address = allocator.assign_account(user_hash, signature)
+    return {'account_address': account_address}
 
-    try:
-        user_info = data['user_info']
-        signature = int(data['signature'])
+@app.get('/public.pem')
+def give_public_key():
+    with open('public.pem', 'rb') as f:
+        public_key = f.read()
+    return Response(content=public_key, media_type='application/x-pem-file')
 
-        # 分配账户
-        account_address = allocator.assign_account(user_info, signature)
-        return jsonify({'account_address': account_address})
-    except Exception as e:
-        app.logger.error(f"分配账户失败: {e}")
-        return jsonify({'error': f'处理请求失败: {str(e)}'}), 500
+@app.get('/deployed.json')
+def give_contract_info():
+    with open('deployed.json', 'r') as f:
+        contract_info = f.read()
+    return Response(content=contract_info, media_type='application/json')
 
-
-@app.get('/health', methods=['GET'])
-def health_check():
-    """健康检查接口"""
-    return jsonify({'status': 'ok'})
-
-
-if __name__ == '__main__':
-    # 启动服务器
-    app.run(host='0.0.0.0', port=5000, debug=True) 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000)

@@ -4,15 +4,23 @@ loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
 
   const voter_id = document.getElementById('voter-id').value;
-  const password = document.getElementById('password').value;
-  const token = voter_id;
+  const voter_name = document.getElementById('voter-name').value;
 
-  const headers = {
-    'method': "GET",
-    'Authorization': `Bearer ${token}`,
-  };
+  
+  localStorage.setItem('voter_id', voter_id);
+  localStorage.setItem('voter_name', voter_name);
 
-  fetch(`http://127.0.0.1:8000/login?voter_id=${voter_id}&password=${password}`, { headers })
+  fetch('http://127.0.0.1:5000/login', {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      voter_id: voter_id,
+      voter_name: voter_name,
+    }),
+  })
   .then(response => {
     if (response.ok) {
       return response.json();
@@ -22,10 +30,8 @@ loginForm.addEventListener('submit', (event) => {
   })
   .then(data => {
     if (data.role === 'admin') {
-      localStorage.setItem('jwtTokenAdmin', data.token);
       window.location.replace(`http://127.0.0.1:8080/admin.html?Authorization=Bearer ${localStorage.getItem('jwtTokenAdmin')}`);
     } else if (data.role === 'user'){
-      localStorage.setItem('jwtTokenVoter', data.token);
       window.location.replace(`http://127.0.0.1:8080/index.html?Authorization=Bearer ${localStorage.getItem('jwtTokenVoter')}`);
     }
   })

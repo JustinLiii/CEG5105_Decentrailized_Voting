@@ -4,6 +4,6 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: 114514
-      MYSQL_DATABASE: voter
+      MYSQL_DATABASE: voter_database
     ports:
       - "3306:3306"

@@ -1,0 +1,1 @@
+npx hardhat node --export ../backend/deployed.json

@@ -19,12 +19,12 @@ def parse_args():
 
 def blind_sign_request(user_name, user_id, server_url):
     user_info = {
-        "id_number": user_id,
-        "name": user_name
+        "voter_id": user_id,
+        "voter_name": user_name
     }
     """执行盲签名请求流程"""
     # 步骤1: 加载公钥
-    public_key_path = '/public.pem'
+    public_key_path = "public.pem"
     try:
         with open(public_key_path, "rb") as f:
             pub_key = RSA.import_key(f.read())
@@ -63,11 +63,13 @@ def blind_sign_request(user_name, user_id, server_url):
     print("签名验证成功！")
     
     # 步骤7: 请求分配账户
-    try:    
+    try: 
+        print(f"message: {message}")
+        print(f'str(message): {str(message)}')
         response = requests.post(
             f"{server_url}/assign_account",
             json={
-                "user_info": user_info,
+                "user_hash": str(message),
                 "signature": str(signature)
             }
         )
@@ -92,7 +94,7 @@ def main():
     }
     
     print(f"正在为用户 {args.name} 请求匿名账户...")
-    account = blind_sign_request(user_info, args.pubkey, args.server)
+    account = blind_sign_request(args.name, args.id, args.server)
     
     # 保存到本地配置文件
     with open(f"{args.name}_account.json", "w") as f:

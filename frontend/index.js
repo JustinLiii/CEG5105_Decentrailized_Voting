@@ -17,9 +17,8 @@ const authorizeUser = (req, res, next) => {
   
   try {
     // Verify and decode the token
-    const decodedToken = jwt.verify(token, process.env.SECRET_KEY, { algorithms: ['HS256'] });
+    jwt.verify(token, process.env.SECRET_KEY, { algorithms: ['HS256'] });
 
-    req.user = decodedToken;
     next(); // Proceed to the next middleware
   } catch (error) {
     return res.status(401).json({ message: 'Invalid authorization token' });
@@ -51,10 +50,6 @@ app.get('/assets/eth5.jpg', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/assets/eth5.jpg'))
 });
 
-app.get('/js/app.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'src/js/app.js'))
-});
-
 app.get('/admin.html', authorizeUser, (req, res) => {
   res.sendFile(path.join(__dirname, 'src/html/admin.html'));
 });
@@ -63,16 +58,12 @@ app.get('/index.html', authorizeUser, (req, res) => {
   res.sendFile(path.join(__dirname, 'src/html/index.html'));
 });
 
-app.get('/dist/login.bundle.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'src/dist/login.bundle.js'));
-});
-
 app.get('/dist/app.bundle.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/dist/app.bundle.js'));
 });
 
-app.get('/public.gem', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public.pem'));
+app.get('/dist/admin.bundle.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'src/dist/admin.bundle.js'));
 });
 
 // Serve the favicon.ico file

@@ -51,7 +51,7 @@ contract Voting {
     }
 
     function setDates(uint256 _startDate, uint256 _endDate) public{
-        require((votingEnd == 0) && (votingStart == 0) && (_endDate > _startDate));
+        require(_endDate > _startDate);
         votingEnd = _endDate;
         votingStart = _startDate;
     }

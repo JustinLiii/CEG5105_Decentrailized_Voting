@@ -105,6 +105,8 @@ async def login(user_info: UserInfo, response: Response):
         samesite="lax"
     )
     
+    logging.info(f"user {user_info.voter_name} logged in with role {role}")
+    
     return {'token': token, 'role': role}
 
 class BlindMessage(BaseModel):
@@ -122,6 +124,7 @@ def blind_sign(data: BlindMessage):
     try:
         blinded_message = int(data.blinded_message)
         blind_signature = allocator.sign_blinded_identity(blinded_message)
+        logger.info(f'Signed blinded message: {blind_signature}')
         return {'blind_signature': str(blind_signature)}
     except Exception as e:
         logger.error(f"盲签名失败: {e}")
@@ -140,7 +143,6 @@ class SignedUserInfo(BaseModel):
     signature: str
 @app.post('/assign_account')
 def assign_account(data: SignedUserInfo):
-    print(f"received message: {data.user_hash}")
     """处理账户分配请求"""
     if not allocator:
         raise HTTPException(
@@ -152,7 +154,24 @@ def assign_account(data: SignedUserInfo):
     signature = int(data.signature)
     # 分配账户
     account_address = allocator.assign_account(user_hash, signature)
+    logging.info(f'Assigned account {account_address} to hashed user {user_hash}')
     return {'account_address': account_address}
+
+@app.post('/check_eligibility')
+def check_eligibility(data: SignedUserInfo):
+    """检查用户是否有资格分配账户"""
+    if not allocator:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="服务器未正确初始化"
+        )
+
+    user_hash = int(data.user_hash)
+    signature = int(data.signature)
+    # 检查资格
+    eligible = allocator.check_eligibility(user_hash, signature)
+    logging.info(f'User {user_hash} eligibility check: {eligible}')
+    return {'eligible': eligible}
 
 @app.get('/public.pem')
 def give_public_key():

@@ -64,6 +64,16 @@ class AnonymousAccountAllocatorDB:
             (signature_hex, signature_hash, datetime.utcnow())
         )
         self.conn.commit()
+        
+    def check_eligibility(self, user_hash: int, signature: int) -> bool:
+        if not self.verify_signature(user_hash, signature):
+            return False
+
+        if self.is_signature_used(signature):
+            return False
+        
+        return True
+        
 
     def assign_account(self, user_hash: int, signature: int):
         """

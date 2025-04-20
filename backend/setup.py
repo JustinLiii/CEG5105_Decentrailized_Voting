@@ -28,23 +28,23 @@ def parse_args():
 
 def generate_rsa_keys(key_size):
     """生成RSA密钥对"""
-    print(f"生成{key_size}位RSA密钥对...")
+    print(f"Generating {key_size} bit RSA key pair...")
     key = RSA.generate(key_size)
     
     # 保存私钥
     with open("private.pem", "wb") as f:
         f.write(key.export_key())
-    print("私钥已保存到 private.pem")
+    print("Private key saved at private.pem")
     
     # 保存公钥
     with open("public.pem", "wb") as f:
         f.write(key.publickey().export_key())
-    print("公钥已保存到 public.pem")
+    print("Public key saved at public.pem")
 
 
 def init_database(db_config):
     """初始化数据库表结构"""
-    print(f"连接到数据库 {db_config['host']}...")
+    print(f"Connecting to DB {db_config['host']}...")
     try:
         # 连接数据库
         conn = pymysql.connect(
@@ -55,12 +55,12 @@ def init_database(db_config):
         cursor = conn.cursor()
         
         # 创建数据库（如果不存在）
-        print(f"创建数据库 {db_config['db']}...")
+        print(f"Creating DB {db_config['db']}...")
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS {db_config['db']}")
         cursor.execute(f"USE {db_config['db']}")
         
         # 创建账户池表
-        print("创建账户池表...")
+        print("Creating blockchain account pool...")
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS account_pool (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -71,7 +71,7 @@ def init_database(db_config):
         """)
         
         # 创建已分配账户表
-        print("创建已分配账户表...")
+        print("Creating assigned account table...")
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS assigned_accounts (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,7 +84,7 @@ def init_database(db_config):
         """)
         
         # 创建已使用签名表（使用 SHA-256 哈希）
-        print("创建已使用签名表...")
+        print("Creating used signature table...")
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS used_signatures (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -97,17 +97,17 @@ def init_database(db_config):
         
         # 提交更改
         conn.commit()
-        print("数据库初始化完成！")
+        print("DB initialization completed!")
         
         # 检查是否需要添加测试账户
         cursor.execute("SELECT COUNT(*) FROM account_pool")
         account_count = cursor.fetchone()[0]
         
         if account_count == 0:
-            add_test_accounts = input("是否添加测试账户到账户池？(y/n): ").lower()
+            add_test_accounts = input("Add testing accounts to accout pool?(y/n): ").lower()
             if add_test_accounts == 'y':
-                num_accounts = int(input("请输入要添加的账户数量: "))
-                print(f"添加{num_accounts}个测试账户...")
+                num_accounts = int(input("Number of test accounts to add: "))
+                print(f"Adding {num_accounts} test accounts...")
                 
                 for i in range(num_accounts):
                     address = create_account(fund=True)[1]
@@ -117,10 +117,10 @@ def init_database(db_config):
                     )
                 
                 conn.commit()
-                print("测试账户添加完成！")
+                print("Test accounts added to account pool!")
         
     except Exception as e:
-        print(f"数据库初始化失败: {e}")
+        print(f"DB initialization failed: {e}")
         sys.exit(1)
     finally:
         cursor.close()
@@ -145,10 +145,10 @@ def main():
     # 初始化数据库
     init_database(db_config)
     
-    print("\n初始化完成！系统已准备就绪。")
-    print("\n启动服务器的命令：")
+    print("\nInitialization complete! System ready")
+    print("\nCommand to launch server:")
     print("python server.py")
-    print("\n用户请求匿名账户的命令：")
+    print("\nCommand to request account:")
     print('python assign_user_complete.py --id "123456789012345678" --name "张三"')
 
 
